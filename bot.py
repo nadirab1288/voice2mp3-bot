@@ -13,15 +13,8 @@ from pydub import AudioSegment
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TPE1, APIC, ID3NoHeaderError
 
-BOT_TOKEN = os.getenv("8828176254:AAFyt9AHjCMP38yX-8SSI7i3nEkkNe-2rLA")
+BOT_TOKEN = "8828176254:AAFyt9AHjCMP38yX-8SSI7i3nEkkNe-2rLA"
 
-# Check if token is received
-if not BOT_TOKEN:
-    print("ERROR: BOT_TOKEN not found in environment variables!")
-    print("Available variables:", list(os.environ.keys()))
-    exit(1)
-
-print("OK: Token received:", BOT_TOKEN[:10] + "...")
 TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
