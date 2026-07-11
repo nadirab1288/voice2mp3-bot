@@ -13,7 +13,7 @@ from pydub import AudioSegment
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TPE1, APIC, ID3NoHeaderError
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("8828176254:AAFvT9AHjCMP38yx-8SSl7i3nEkkne-2rLA")
 
 # Check if token is received
 if not BOT_TOKEN:
