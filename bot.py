@@ -65,7 +65,7 @@ async def handle_voice(message: Message, state: FSMContext):
 
         await bot.download_file(file_path, ogg_path)
 
-        await message.answer(" Конвертирую в MP3...")
+        await message.answer("🔄 Конвертирую в MP3...")
         audio = AudioSegment.from_file(ogg_path, format="ogg")
         audio.export(mp3_path, format="mp3", bitrate="192k")
 
@@ -104,7 +104,7 @@ async def handle_artist(message: Message, state: FSMContext):
     artist = message.text.strip()
 
     if not artist or len(artist) > 200:
-        await message.answer("⚠️ Введи имя исполнителя (1–200 символов):")
+        await message.answer("️ Введи имя исполнителя (1–200 символов):")
         return
 
     user_data[chat_id]["artist"] = artist
@@ -146,14 +146,23 @@ async def handle_cover(message: Message, state: FSMContext):
         os.rename(mp3_path, final_path)
         data["mp3_path"] = final_path
 
-        # Отправляем аудио БЕЗ подписи (чтобы не дублировалось)
+        # Отправляем аудио с обложкой как миниатюрой
         audio_file = FSInputFile(final_path, filename=file_name)
-        await message.answer_audio(
-            audio=audio_file,
-            title=title,
-            performer=artist,
-            # caption убран - метаданные уже в файле
-        )
+        
+        # Если есть обложка - добавляем её как миниатюру
+        if cover_path and os.path.exists(cover_path):
+            await message.answer_audio(
+                audio=audio_file,
+                title=title,
+                performer=artist,
+                thumb=FSInputFile(cover_path),  # Миниатюра
+            )
+        else:
+            await message.answer_audio(
+                audio=audio_file,
+                title=title,
+                performer=artist,
+            )
 
         cleanup_files(data)
         del user_data[chat_id]
