@@ -61,7 +61,7 @@ async def cmd_start(message: Message):
         "1️⃣ Отправь <b>голосовое сообщение</b>\n"
         "2️⃣ Введи название трека\n"
         "3️⃣ Введи исполнителя\n"
-        "4️ Отправь обложку или пропусти\n\n"
+        "4️⃣ Отправь обложку или пропусти\n\n"
         "💡 <b>Команды:</b>\n"
         "/help - Помощь\n"
         "/cancel - Отменить конвертацию\n"
@@ -85,7 +85,7 @@ async def cmd_help(message: Message):
         "/help - Эта справка\n"
         "/cancel - Отменить текущую операцию\n"
         "/batch - Пакетная обработка\n\n"
-        " <b>Советы:</b>\n"
+        "💡 <b>Советы:</b>\n"
         "• Можно отправить фото для обложки\n"
         "• Или пропустить этот шаг кнопкой\n"
         "• Для связи с админом нажми /start"
@@ -104,7 +104,7 @@ async def cmd_batch(message: Message, state: FSMContext):
         "📦 <b>Пакетная обработка активирована!</b>\n\n"
         "Отправляй <b>несколько голосовых сообщений</b>.\n"
         "Когда закончишь — нажми кнопку ниже.\n\n"
-        " Все файлы будут конвертированы и отправлены по отдельности.",
+        "💡 Все файлы будут конвертированы и отправлены по отдельности.",
         parse_mode="HTML",
         reply_markup=get_batch_buttons()
     )
@@ -139,7 +139,7 @@ async def callback_batch_finish(callback_query, state: FSMContext):
     await callback_query.message.answer(f"⏳ Обрабатываю {len(user_data[chat_id]['voice_files'])} файлов...")
     
     for idx, voice_data in enumerate(user_data[chat_id]["voice_files"], 1):
-        await callback_query.message.answer(f" Обработка {idx}/{len(user_data[chat_id]['voice_files'])}...")
+        await callback_query.message.answer(f"🔄 Обработка {idx}/{len(user_data[chat_id]['voice_files'])}...")
         try:
             await process_single_voice(callback_query.message, voice_data, state)
         except Exception as e:
@@ -179,7 +179,7 @@ async def process_final_mp3(message: Message, state: FSMContext, is_batch=False)
     artist = data["artist"]
     cover_path = data["cover_path"]
     
-    await message.answer("⏳ Записываю теги...")
+    await message.answer(" Записываю теги...")
     add_id3_tags(mp3_path, title, artist, cover_path)
     
     safe_title = "".join(c for c in title if c.isalnum() or c in " -_").strip()[:50]
@@ -211,7 +211,7 @@ async def handle_voice(message: Message, state: FSMContext):
         return
     
     chat_id = message.chat.id
-    await message.answer("⏳ Скачиваю...")
+    await message.answer(" Скачиваю...")
     
     try:
         voice = message.voice
@@ -302,7 +302,7 @@ async def handle_artist(message: Message, state: FSMContext):
     await state.set_state(ConvertStates.waiting_for_cover)
     await message.answer(
         f"🎤 Исполнитель: <b>{artist}</b>\n\n"
-        "🖼️ Отправь <b>фото</b> для обложки или нажми кнопку ниже:",
+        "️ Отправь <b>фото</b> для обложки или нажми кнопку ниже:",
         parse_mode="HTML",
         reply_markup=get_skip_button()
     )
@@ -324,36 +324,31 @@ def add_id3_tags(mp3_path: str, title: str, artist: str, cover_path: str | None)
         audio = ID3(mp3_path)
     except ID3NoHeaderError:
         audio = ID3()
-    
+
     audio.clear()
+    
     audio["TIT2"] = TIT2(encoding=3, text=title)
     audio["TPE1"] = TPE1(encoding=3, text=artist)
     
     if cover_path and os.path.exists(cover_path):
         try:
             with Image.open(cover_path) as img:
-                # Конвертируем в RGB если нужно
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
-                
-                # Для Android: уменьшаем до 300x300 (лучше совместимость)
-                img = img.resize((300, 300), Image.Resampling.LANCZOS)
-                
-                # Сохраняем в bytes
+                img.thumbnail((512, 512), Image.Resampling.LANCZOS)
                 img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='JPEG', quality=90, optimize=True)
+                img.save(img_byte_arr, format='JPEG', quality=85)
                 img_byte_arr.seek(0)
                 cover_data = img_byte_arr.read()
             
-            # Добавляем обложку с параметрами для Android
             audio["APIC"] = APIC(
                 encoding=3,
                 mime="image/jpeg",
-                type=3,  # Front cover
-                desc="",  # Пустое описание для совместимости
+                type=3,
+                desc="Cover",
                 data=cover_data
             )
-            logger.info(f"✅ Обложка добавлена (300x300, {len(cover_data)} байт)")
+            logger.info("✅ Обложка добавлена (сжата до 512x512)")
         except Exception as e:
             logger.error(f"❌ Ошибка обработки обложки: {e}")
     
