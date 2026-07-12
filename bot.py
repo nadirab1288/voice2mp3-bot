@@ -36,7 +36,7 @@ user_data: dict[int, dict] = {}
 async def cmd_start(message: Message):
     await message.answer(
         "🎵 <b>Привет! Я конвертер голосовых в MP3.</b>\n\n"
-        " Просто отправь мне <b>голосовое сообщение</b>!",
+        "Просто отправь мне <b>голосовое сообщение</b>!",
         parse_mode="HTML"
     )
 
@@ -65,7 +65,7 @@ async def handle_voice(message: Message, state: FSMContext):
 
         await bot.download_file(file_path, ogg_path)
 
-        await message.answer("🔄 Конвертирую в MP3...")
+        await message.answer(" Конвертирую в MP3...")
         audio = AudioSegment.from_file(ogg_path, format="ogg")
         audio.export(mp3_path, format="mp3", bitrate="192k")
 
@@ -91,7 +91,7 @@ async def handle_title(message: Message, state: FSMContext):
     title = message.text.strip()
 
     if not title or len(title) > 200:
-        await message.answer("️ Введи название (1–200 символов):")
+        await message.answer("⚠️ Введи название (1–200 символов):")
         return
 
     user_data[chat_id]["title"] = title
@@ -104,12 +104,12 @@ async def handle_artist(message: Message, state: FSMContext):
     artist = message.text.strip()
 
     if not artist or len(artist) > 200:
-        await message.answer("️ Введи имя исполнителя (1–200 символов):")
+        await message.answer("⚠️ Введи имя исполнителя (1–200 символов):")
         return
 
     user_data[chat_id]["artist"] = artist
     await state.set_state(ConvertStates.waiting_for_cover)
-    await message.answer(f" Исполнитель: <b>{artist}</b>\n\n🖼️ Отправь <b>фото</b> для обложки или напиши <code>skip</code>:", parse_mode="HTML")
+    await message.answer(f"🎤 Исполнитель: <b>{artist}</b>\n\n🖼️ Отправь <b>фото</b> для обложки или напиши <code>skip</code>:", parse_mode="HTML")
 
 @router.message(ConvertStates.waiting_for_cover)
 async def handle_cover(message: Message, state: FSMContext):
@@ -146,13 +146,13 @@ async def handle_cover(message: Message, state: FSMContext):
         os.rename(mp3_path, final_path)
         data["mp3_path"] = final_path
 
+        # Отправляем аудио БЕЗ подписи (чтобы не дублировалось)
         audio_file = FSInputFile(final_path, filename=file_name)
         await message.answer_audio(
             audio=audio_file,
             title=title,
             performer=artist,
-            caption=f"🎵 <b>{title}</b>\n🎤 {artist}",
-            parse_mode="HTML"
+            # caption убран - метаданные уже в файле
         )
 
         cleanup_files(data)
@@ -173,22 +173,27 @@ def add_id3_tags(mp3_path: str, title: str, artist: str, cover_path: str | None)
     except ID3NoHeaderError:
         audio = ID3()
 
+    # Очищаем старые теги
+    audio.clear()
+    
+    # Добавляем новые теги
     audio["TIT2"] = TIT2(encoding=3, text=title)
     audio["TPE1"] = TPE1(encoding=3, text=artist)
-
+    
+    # Добавляем обложку (если есть)
     if cover_path and os.path.exists(cover_path):
         with open(cover_path, "rb") as f:
             cover_data = f.read()
         audio["APIC"] = APIC(
             encoding=3,
             mime="image/jpeg",
-            type=3,
+            type=3,  # Front cover
             desc="Cover",
             data=cover_data
         )
-
-    audio.save(mp3_path)
-    logger.info(f"Теги записаны: {title} — {artist}")
+    
+    audio.save(mp3_path, v2_version=3)
+    logger.info(f"✅ Теги записаны: {title} — {artist}")
 
 def cleanup_files(data: dict):
     for key in ("ogg_path", "mp3_path", "cover_path"):
