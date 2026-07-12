@@ -1,3 +1,4 @@
-   aiogram==3.29.1
-   pydub==0.25.1
-   mutagen==1.48.1
+aiogram==3.29.1
+pydub==0.25.1
+mutagen==1.48.1
+Pillow==10.2.0
