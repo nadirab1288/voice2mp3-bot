@@ -13,7 +13,6 @@ from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TPE1, APIC, ID3NoHeaderError
 from PIL import Image
 import io
-import zipfile
 
 BOT_TOKEN = "8828176254:AAFyt9AHjCMP38yX-8SSI7i3nEkkNe-2rLA"
 ADMIN_USERNAME = "@Salyaf_ru"
@@ -38,19 +37,17 @@ user_data: dict[int, dict] = {}
 
 def get_skip_button():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="️ Пропустить", callback_data="skip_cover")],
-        [InlineKeyboardButton(text="👤 Связаться с админом", url=f"https://t.me/{ADMIN_USERNAME.replace('@', '')}")]
+        [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="skip_cover")]
     ])
     return keyboard
 
 def get_batch_buttons():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Завершить и конвертировать", callback_data="batch_finish")],
-        [InlineKeyboardButton(text="👤 Связаться с админом", url=f"https://t.me/{ADMIN_USERNAME.replace('@', '')}")]
+        [InlineKeyboardButton(text="✅ Завершить и конвертировать", callback_data="batch_finish")]
     ])
     return keyboard
 
-def get_help_keyboard():
+def get_start_keyboard():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="👤 Связаться с админом", url=f"https://t.me/{ADMIN_USERNAME.replace('@', '')}")]
     ])
@@ -60,24 +57,24 @@ def get_help_keyboard():
 async def cmd_start(message: Message):
     await message.answer(
         "🎵 <b>Привет! Я конвертер голосовых в MP3.</b>\n\n"
-        " <b>Как использовать:</b>\n"
-        "1️⃣ Отправь <b>голосовое сообщение</b>\n"
+        "📝 <b>Как использовать:</b>\n"
+        "1️ Отправь <b>голосовое сообщение</b>\n"
         "2️ Введи название трека\n"
         "3️⃣ Введи исполнителя\n"
         "4️⃣ Отправь обложку или пропусти\n\n"
-        "💡 <b>Команды:</b>\n"
+        " <b>Команды:</b>\n"
         "/help - Помощь\n"
         "/cancel - Отменить конвертацию\n"
         "/batch - Пакетная обработка",
         parse_mode="HTML",
-        reply_markup=get_help_keyboard()
+        reply_markup=get_start_keyboard()
     )
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
         "📖 <b>Справка по боту</b>\n\n"
-        "🎵 <b>Основные функции:</b>\n"
+        " <b>Основные функции:</b>\n"
         "• Конвертация голосовых в MP3\n"
         "• Добавление метаданных (название, исполнитель)\n"
         "• Добавление обложки альбома\n"
@@ -91,9 +88,7 @@ async def cmd_help(message: Message):
         "💡 <b>Советы:</b>\n"
         "• Можно отправить фото для обложки\n"
         "• Или пропустить этот шаг кнопкой\n"
-        "• Для связи с админом используй кнопку ниже",
-        parse_mode="HTML",
-        reply_markup=get_help_keyboard()
+        "• Для связи с админом нажми /start"
     )
 
 @router.message(Command("batch"))
@@ -251,7 +246,7 @@ async def handle_voice(message: Message, state: FSMContext):
 
 async def handle_batch_voice(message: Message, state: FSMContext):
     chat_id = message.chat.id
-    await message.answer(" Добавляю в очередь...")
+    await message.answer("➕ Добавляю в очередь...")
     
     try:
         voice = message.voice
@@ -307,7 +302,7 @@ async def handle_artist(message: Message, state: FSMContext):
     await state.set_state(ConvertStates.waiting_for_cover)
     await message.answer(
         f"🎤 Исполнитель: <b>{artist}</b>\n\n"
-        "🖼️ Отправь <b>фото</b> для обложки или нажми кнопку ниже:",
+        "️ Отправь <b>фото</b> для обложки или нажми кнопку ниже:",
         parse_mode="HTML",
         reply_markup=get_skip_button()
     )
@@ -337,11 +332,16 @@ def add_id3_tags(mp3_path: str, title: str, artist: str, cover_path: str | None)
     if cover_path and os.path.exists(cover_path):
         try:
             with Image.open(cover_path) as img:
+                # Конвертируем в RGB если нужно
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
-                img.thumbnail((512, 512), Image.Resampling.LANCZOS)
+                
+                # Изменяем размер до 512x512 (идеально для Telegram)
+                img = img.resize((512, 512), Image.Resampling.LANCZOS)
+                
+                # Сохраняем в bytes с высоким качеством
                 img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='JPEG', quality=85)
+                img.save(img_byte_arr, format='JPEG', quality=95, optimize=True)
                 img_byte_arr.seek(0)
                 cover_data = img_byte_arr.read()
             
@@ -349,12 +349,12 @@ def add_id3_tags(mp3_path: str, title: str, artist: str, cover_path: str | None)
                 encoding=3,
                 mime="image/jpeg",
                 type=3,
-                desc="",
+                desc="Cover",
                 data=cover_data
             )
-            logger.info("✅ Обложка добавлена (сжата до 512x512)")
+            logger.info(f"✅ Обложка добавлена (512x512, {len(cover_data)} байт)")
         except Exception as e:
-            logger.error(f"❌ Ошибка обработки обложки: {e}")
+            logger.error(f" Ошибка обработки обложки: {e}")
     
     audio.save(mp3_path, v2_version=3)
     logger.info(f"✅ Теги записаны: {title} — {artist}")
